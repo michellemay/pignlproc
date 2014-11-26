@@ -1,12 +1,12 @@
-DEFINE read(WIKIPEDIA_DUMP, LANG, MIN_SURFACE_FORM_LENGTH) RETURNS ids, articles, pairs {
+DEFINE read(WIKIPEDIA_DUMP_ARG, LANG_ARG, MIN_SURFACE_FORM_LENGTH_ARG) RETURNS ids, articles, pairs {
     -- parse Wikipedia into IDs, article texts and link pairs
 
     DEFINE resolve pignlproc.helpers.SecondIfNotNullElseFirst();
-    DEFINE dbpediaEncode pignlproc.evaluation.DBpediaUriEncode('$LANG');
+    DEFINE dbpediaEncode pignlproc.evaluation.DBpediaUriEncode('$LANG_ARG');
 
     -- Parse the wikipedia dump and extract text and links data
-    parsed = LOAD '$WIKIPEDIA_DUMP'
-      USING pignlproc.storage.ParsingWikipediaLoader('$LANG')
+    parsed = LOAD '$WIKIPEDIA_DUMP_ARG'
+      USING pignlproc.storage.ParsingWikipediaLoader('$LANG_ARG')
       AS (title, id, pageUrl, text, redirect, links, headers, paragraphs);
 
     -- Normalize pageUrls to DBpedia URIs
@@ -46,7 +46,7 @@ DEFINE read(WIKIPEDIA_DUMP, LANG, MIN_SURFACE_FORM_LENGTH) RETURNS ids, articles
       redirectTarget AS uri;
 
     -- Get Links
-    pageLinksNonEmptySf = getLinks(articles, $LANG, $MIN_SURFACE_FORM_LENGTH);
+    pageLinksNonEmptySf = getLinks(articles, $LANG_ARG, $MIN_SURFACE_FORM_LENGTH_ARG);
 
     -- Resolve redirects
     pageLinksRedirectsJoin = JOIN
@@ -63,10 +63,10 @@ DEFINE read(WIKIPEDIA_DUMP, LANG, MIN_SURFACE_FORM_LENGTH) RETURNS ids, articles
       distinctLinks;
 };
 
-DEFINE getLinks(articles, LANG, MIN_SURFACE_FORM_LENGTH) RETURNS pageLinksNonEmptySf {
+DEFINE getLinks(articles, LANG_ARG, MIN_SURFACE_FORM_LENGTH_ARG) RETURNS pageLinksNonEmptySf {
     -- get link pairs
 
-    DEFINE dbpediaEncode pignlproc.evaluation.DBpediaUriEncode('$LANG');
+    DEFINE dbpediaEncode pignlproc.evaluation.DBpediaUriEncode('$LANG_ARG');
 
     -- Extract sentence contexts of the links respecting the paragraph boundaries
     sentences = FOREACH $articles GENERATE
@@ -82,7 +82,7 @@ DEFINE getLinks(articles, LANG, MIN_SURFACE_FORM_LENGTH) RETURNS pageLinksNonEmp
 
     -- Filter out surfaceForms that have zero or one character
     $pageLinksNonEmptySf = FILTER pageLinks
-      BY SIZE(surfaceForm) >= $MIN_SURFACE_FORM_LENGTH;
+      BY SIZE(surfaceForm) >= $MIN_SURFACE_FORM_LENGTH_ARG;
 };
 
 DEFINE redirectTransClo(parsedRedirects) RETURNS redirects {
@@ -120,19 +120,19 @@ DEFINE red(parsedRedirects) RETURNS p {
       FLATTEN(resolve(target1a, target1b)) AS redirect;
 };
 
-DEFINE diskIntensiveNgrams(articles, MAX_NGRAM_LENGTH, LOCALE) RETURNS pageNgrams {
+DEFINE diskIntensiveNgrams(articles, MAX_NGRAM_LENGTH_ARG, LOCALE_ARG) RETURNS pageNgrams {
     -- create *all* ngrams in a bag
 
-    DEFINE ngramGenerator pignlproc.helpers.RestrictedNGramGenerator('$MAX_NGRAM_LENGTH', '', '$LOCALE'); -- do not restrict: ''
+    DEFINE ngramGenerator pignlproc.helpers.RestrictedNGramGenerator('$MAX_NGRAM_LENGTH_ARG', '', '$LOCALE_ARG'); -- do not restrict: ''
 
     $pageNgrams = FOREACH $articles GENERATE
       FLATTEN(ngramGenerator(text)) AS ngram,
       pageUrl;
 };
 
-DEFINE memoryIntensiveNgrams(articles, pairs, MAX_NGRAM_LENGTH, TEMPORARY_SF_LOCATION, LOCALE) RETURNS pageNgrams {
+DEFINE memoryIntensiveNgrams(articles, pairs, MAX_NGRAM_LENGTH_ARG, TEMPORARY_SF_LOCATION_ARG, LOCALE_ARG) RETURNS pageNgrams {
 
-    DEFINE ngramGenerator pignlproc.helpers.RestrictedNGramGenerator('$MAX_NGRAM_LENGTH', '$TEMPORARY_SF_LOCATION/surfaceForms', '$LOCALE');
+    DEFINE ngramGenerator pignlproc.helpers.RestrictedNGramGenerator('$MAX_NGRAM_LENGTH_ARG', '$TEMPORARY_SF_LOCATION_ARG/surfaceForms', '$LOCALE_ARG');
 
     -- filter to only include ngrams that are also surface forms while generating ngrams
     $pageNgrams = FOREACH $articles GENERATE
