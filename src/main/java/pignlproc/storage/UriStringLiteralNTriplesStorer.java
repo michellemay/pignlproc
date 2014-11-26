@@ -37,7 +37,7 @@ public class UriStringLiteralNTriplesStorer extends AbstractNTriplesStorer {
 
     @Override
     public void putNext(Tuple fields) throws IOException {
-        if (fields.isNull()) {
+        if (fields == null) {
             // skip null entries
             return;
         }
